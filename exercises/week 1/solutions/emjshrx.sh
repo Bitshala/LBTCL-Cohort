@@ -13,20 +13,20 @@ echo "3. Exit "
 read -n 1 -p "Option : " option
 case $option in 
 0 )
-    #mkdir install
+    mkdir install
     cd install
-    #wget https://bitcoincore.org/bin/bitcoin-core-25.0/bitcoin-25.0-x86_64-linux-gnu.tar.gz
-    #wget https://bitcoincore.org/bin/bitcoin-core-25.0/SHA256SUMS
+    wget https://bitcoincore.org/bin/bitcoin-core-25.0/bitcoin-25.0-x86_64-linux-gnu.tar.gz
+    wget https://bitcoincore.org/bin/bitcoin-core-25.0/SHA256SUMS
     if sha256sum --ignore-missing --check SHA256SUMS | grep -q 'bitcoin-25.0-x86_64-linux-gnu.tar.gz: OK'; then
     echo "Binary signature verification successful"
     fi
-    #wget https://bitcoincore.org/bin/bitcoin-core-25.0/SHA256SUMS.asc
+    wget https://bitcoincore.org/bin/bitcoin-core-25.0/SHA256SUMS.asc
     git clone https://github.com/bitcoin-core/guix.sigs
     gpg --import guix.sigs/builder-keys/*
     gpg --verify SHA256SUMS.asc
     tar --extract -f bitcoin-25.0-x86_64-linux-gnu.tar.gz
     echo "Done"
-    #cp bitcoin-25.0 /usr/local/bin/
+    cp bitcoin-25.0 /usr/local/bin/
     ;;
 1 )
     rm ~/.bitcoin/bitcoin.conf
