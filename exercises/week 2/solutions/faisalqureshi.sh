@@ -135,7 +135,7 @@ child_tx_details1=$(bitcoin-cli  getmempoolentry $child_tx_id)
 
 # printing the output 
 
-echo $child_tx_details
+echo $child_tx_details1
 
 # bumping the fee of the transaction 
 
@@ -154,7 +154,7 @@ child_tx_details2=$(bitcoin-cli  getmempoolentry $child_tx_id)
 
 # printing the output 
 
-echo $child_tx_details
+echo $child_tx_details2
 
 
 # explanation
