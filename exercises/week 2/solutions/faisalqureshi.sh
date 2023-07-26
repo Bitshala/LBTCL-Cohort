@@ -33,10 +33,10 @@ bitcoin-cli -rpcwallet=Miner listunspent
 
 # selecting two UTXOs worth 50 BTC each 
 
-$txid1=$(bitcoin-cli listunspent | jq -r ‘.[0] | .txid')
-$vout1=$(bitcoin-cli listunspent | jq -r ‘.[0] | .vout’)
-$txid2=$(bitcoin-cli listunspent | jq -r ‘.[1] | .txid')
-$vout2=$(bitcoin-cli listunspent | jq -r ‘.[2] | .vout’)
+txid1=$(bitcoin-cli listunspent | jq -r ‘.[0] | .txid')
+vout1=$(bitcoin-cli listunspent | jq -r ‘.[0] | .vout’)
+txid2=$(bitcoin-cli listunspent | jq -r ‘.[1] | .txid')
+vout2=$(bitcoin-cli listunspent | jq -r ‘.[2] | .vout’)
 
 # crafting a transaction from Miner to Trader and signalling RBF
 parent=$(bitcoin-cli  -rpcwallet=Miner createrawtransaction '[
@@ -117,7 +117,7 @@ echo $JSON
 child=$(bitcoin-cli -rpcwallet=Miner createrawtransaction '[
     {"txid": $parent_tx_id, "vout": $miner_vout}
 ]' '{
-    "'$miner_new_address'": 29.900
+    $miner_new_address: 29.900
 }')
 
 
