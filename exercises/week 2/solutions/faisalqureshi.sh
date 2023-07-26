@@ -11,7 +11,7 @@ bitcoin-cli createwallet “Miner”
 bitcoin-cli createwallet “Trader”
 
 # loading ‘Miner’ wallet 
-bitcoin-cli loadwallet “Miner”
+bitcoin-cli loadwallet “Miner"
 
 # generating an address for 'Miner' Wallet 
 miner_address=$(bitcoin-cli -rpcwallet=Miner getnewaddress "Mining Reward”)
