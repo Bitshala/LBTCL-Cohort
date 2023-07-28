@@ -42,7 +42,7 @@ txindex=1" >> ~/.bitcoin/bitcoin.conf
     mineraddr=$(bitcoin-cli -rpcwallet=Miner getnewaddress "Mining Reward")
     bitcoin-cli generatetoaddress 101 $mineraddr
     # coinbase transactions are locked for 100 blocks to accomadate reorgs in this time
-    bitcoin-cli getbalance
+    bitcoin-cli -rpcwallet=Miner getbalance
     ;;
 2 )
     bitcoin-cli loadwallet Trader
