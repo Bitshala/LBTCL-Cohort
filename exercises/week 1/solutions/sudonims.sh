@@ -43,7 +43,7 @@ bitcoin-cli createwallet Trader
 
 miner_add=`bitcoin-cli -rpcwallet=Miner getnewaddress "Mining Reward"`
 
-bitcoin-cli generatetoaddress 100 ${miner_add}
+bitcoin-cli generatetoaddress 101 ${miner_add}
 
 echo "Miner Wallet Balance:"
 bitcoin-cli -rpcwallet=Miner getbalances
