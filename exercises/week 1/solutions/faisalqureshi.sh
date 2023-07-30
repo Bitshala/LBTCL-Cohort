@@ -19,7 +19,7 @@ else
     echo "❌ Binary signature verification unsuccessful! Please check the integrity of your binary. 😞"
 fi
 
-cd bitcoin
+cd /Users/$USER/Library/Application\ Support/Bitcoin
 
 touch bitcoin.conf
 
@@ -28,8 +28,12 @@ echo "fallbackfee=0.0001" >> bitcoin.conf
 echo "server=1" >> bitcoin.conf
 echo "txindex=1" >> bitcoin.conf
 
+# Start bitcoind in the background
 bitcoind -daemon
-
+# Wait for 10 seconds
+sleep 10
+# Now you can run bitcoin-cli getinfo
+bitcoin-cli -getinfo
 
 # Creating Miner Wallet
 
