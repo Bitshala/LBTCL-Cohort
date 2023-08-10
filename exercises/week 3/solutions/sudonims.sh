@@ -181,10 +181,11 @@ mine 101 $miner_add
 
 create_psbt_spend_from_multisig $multisig_add $psbt_txid 
 
-mine 101 $miner_add
+# mine 101 $miner_add
 
 print_balance Alice
 print_balance Bob
 
 bitcoin-cli stop
 
+# I don't think Alice or Bob can be poorer or richer, as it is completely dependant on how the PSBTs were made...
