@@ -51,10 +51,10 @@ create_transaction(){
     
     UTXO1_TXID=${SENDERTXID[0]}
     UTXO1_VOUT=${SENDERVOUT[0]}
-    RECEIVER_ADDR=`create_address $2`
-    CHANGE_ADDR=`$BITCOINCLI $DATADIR -rpcwallet=$1 getrawchangeaddress`
+    RECEIVER_ADDR=$(create_address $2)
+    CHANGE_ADDR=$($BITCOINCLI $DATADIR -rpcwallet=$1 getrawchangeaddress)
 
-    HEX=$($BITCOINCLI $DATADIR -rpcwallet=$1 -named createrawtransaction inputs='''[{"txid": "'$UTXO1_TXID'", "vout": '$UTXO1_VOUT' }]''' outputs='''{"'$RECEIVER_ADDR'": 40.0, "'$CHANGE_ADDR'": 9.998 }''' locktime=500)   
+    HEX=$($BITCOINCLI $DATADIR -rpcwallet=$1 -named createrawtransaction inputs='''[{"txid": "'$UTXO1_TXID'", "vout": '$UTXO1_VOUT' }]''' outputs='''{"'$RECEIVER_ADDR'": 40.0, "'$CHANGE_ADDR'": 9.9998 }''' locktime=500)   
 }
 
 sign_transaction(){
@@ -66,6 +66,21 @@ sign_transaction(){
 send_transaction(){
     $BITCOINCLI $DATADIR -rpcwallet=$1 -named sendrawtransaction hexstring=$signedtx > /dev/null
     echo "Broadcasting transaction..."
+}
+
+create_opreturn(){
+    SENDERTXID=($($BITCOINCLI $DATADIR -rpcwallet=$1 listunspent | jq -r '.[] | .txid'))
+    SENDERVOUT=($($BITCOINCLI $DATADIR -rpcwallet=$1 listunspent | jq -r '.[] | .vout'))
+    
+    UTXO1_TXID=${SENDERTXID[0]}
+    UTXO1_VOUT=${SENDERVOUT[0]}
+    CHANGE_ADDR=$($BITCOINCLI $DATADIR -rpcwallet=$1 getrawchangeaddress)
+#    OP_RETURN_DATA="4920676f74206d792073616c6172792c204920616d20726963682e"
+    OP_RETURN_DATA=$(echo $2 | xxd -p)
+    DATA=$(echo "$OP_RETURN_DATA" | xxd -r -p)
+    echo "Writing OP_RETURN: $DATA ..."
+
+    HEX=$($BITCOINCLI $DATADIR -rpcwallet=$1 -named createrawtransaction inputs='''[{"txid": "'$UTXO1_TXID'", "vout": '$UTXO1_VOUT' }]''' outputs='''{ "data": "'$OP_RETURN_DATA'", "'$CHANGE_ADDR'": 39.9998 }''')   
 }
 
 cleanup(){
@@ -104,6 +119,7 @@ error message:
 non-final
 
 getmempoolentry returns transaction not in mempool
+This is because most Bitcoin mempools will not allow you to place a timelocked transaction in their mempool until the timelock has expired.
 comment
 
 #6. Mine up to the 500th block and broadcast transaction.
@@ -116,7 +132,18 @@ echo "Employee balance: $(get_balance Employee) BTC"
 echo "Employer balance: $(get_balance Employer) BTC"
 
 #PART II
-#1. 
+#1. Create a spending transaction where the Employee spends the funds to a new Employee address
+#2. Add an OP_RETURN output in the spending transaction with the string data "I got my salary, I am rich"
+create_opreturn Employee "I got my salary, I am rich"
+
+#3. Extract and broadcast the fully signed transaction
+sign_transaction Employee "$HEX"
+send_transaction Employee
+mine_new_blocks Miner 1
+
+#4. Print the final balances of the Employee and Employer
+echo "Employee balance: $(get_balance Employee) BTC"
+echo "Employer balance: $(get_balance Employer) BTC"
 
 #CLEANUP
 cleanup
