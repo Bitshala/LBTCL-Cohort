@@ -10,7 +10,7 @@ start_bitcoind() {
 
 create_wallet() {
 	echo "Creating Wallet: $1"
-	bitcoin-cli createwallet $1
+	bitcoin-cli -named createwallet wallet_name=$1 descriptors=false
 }
 
 mine() {
@@ -18,7 +18,7 @@ mine() {
 }
 
 get_new_add() {
-	add=`bitcoin-cli -rpcwallet=$1 getnewaddress "$2"`
+	add=`bitcoin-cli -rpcwallet=$1 getnewaddress legacy`
 }
 
 sign_and_send_trx() {
@@ -97,8 +97,38 @@ create_psbt_to_multisig() {
 
 	txid=`bitcoin-cli sendrawtransaction "$finalized"`
 
+	echo "PSBT to multisig txid: ${txid}"
+
 }
 
+create_psbt_spend_from_multisig() {
+	bitcoin-cli -rpcwallet=Alice -named addmultisigaddress nrequired=2 keys='''["'$pub1'","'$pub2'"]'''
+	bitcoin-cli -rpcwallet=Bob -named addmultisigaddress nrequired=2 keys='''["'$pub1'","'$pub2'"]'''
+	bitcoin-cli -rpcwallet=Alice -named importaddress address="$1" rescan=false
+	bitcoin-cli -rpcwallet=Bob -named importaddress address="$1" rescan=false
+
+
+	psbt=`bitcoin-cli -named createpsbt inputs='''[{"txid": "'$2'", "vout": 0}]''' outputs='''[{"'${alice_change_add}'": 9.99999}, {"'${bob_change_add}'": 9.99999}]'''`
+
+	alice_sign=`bitcoin-cli -rpcwallet=Alice walletprocesspsbt ${psbt} | jq -r '.psbt'`
+	bob_sign=`bitcoin-cli -rpcwallet=Bob walletprocesspsbt ${alice_sign}`
+
+	status=`echo ${bob_sign} | jq -r '.complete'`
+
+	[ "$status" == "true" ] && echo "PSBT Signed completely" || echo "PSBT is not completely signed" 
+
+	bob_sign=`echo $bob_sign | jq -r '.psbt'`
+
+	bitcoin-cli decodepsbt $bob_sign
+
+	finalized=`bitcoin-cli finalizepsbt ${bob_sign} | jq -r '.hex'`
+
+	echo "PSBT Hex: ${finalized}"
+
+	txid=`bitcoin-cli sendrawtransaction "$finalized"`
+
+	echo "PSBT multisig spend txid: ${txid}"
+}
 
 
 
@@ -149,9 +179,12 @@ psbt_txid=$txid
 
 mine 101 $miner_add
 
+create_psbt_spend_from_multisig $multisig_add $psbt_txid 
+
+mine 101 $miner_add
+
 print_balance Alice
 print_balance Bob
 
-
-
+bitcoin-cli stop
 
