@@ -74,7 +74,44 @@ create_2_2_multisig_address() {
 	multisig_add=`bitcoin-cli -datadir=$DATA_DIR -rpcwallet=$1 -named createmultisig nrequired=2 keys='''["'$pub1'", "'$pub2'"]''' | jq -r '.address'`
 }
 
+fund_multisig() {
+	TRXID_EMPLOYER=($(bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Employer listunspent | jq -r '.[] | .txid'))
+	VOUT_EMPLOYER=($(bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Employer listunspent | jq -r '.[] | .vout'))
 
+	trxhex=`bitcoin-cli -datadir=$DATA_DIR -named createrawtransaction inputs='''[{"txid": "'${TRXID_EMPLOYER[0]}'", "vout": '${VOUT_EMPLOYER[0]}'}]''' outputs='''[{"'$1'": 40}, {"'$2'": 9.9999}]'''`
+
+	sign_and_send_trx Employer $trxhex
+}
+
+
+send_from_multisig_rich() {
+	bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Employee -named addmultisigaddress nrequired=2 keys='''["'$pub1'","'$pub2'"]'''
+	bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Employer -named addmultisigaddress nrequired=2 keys='''["'$pub1'","'$pub2'"]'''
+	bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Employee -named importaddress address="$1" rescan=false
+	bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Employer -named importaddress address="$1" rescan=false
+
+
+	psbt=`bitcoin-cli -datadir=$DATA_DIR -named createpsbt inputs='''[{"txid": "'$2'", "vout": 0}]''' outputs='''[{"data": "4920676f74206d792073616c617279204920616d20726963680a"}, {"'$3'": 39.9999}]'''`
+
+	# echo $psbt
+	employee_sign=`bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Employee walletprocesspsbt ${psbt} | jq -r '.psbt'`
+	# echo $employee_sign
+	
+	employer_sign=`bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Employer walletprocesspsbt ${employee_sign}`
+	echo $employer_sign
+
+	status=`echo ${employer_sign} | jq -r '.complete'`
+
+	[ "$status" == "true" ] && echo "PSBT Signed completely" || echo "PSBT is not completely signed" 
+
+	employer_sign=`echo $employer_sign | jq -r '.psbt'`
+
+	finalized=`bitcoin-cli -datadir=$DATA_DIR finalizepsbt ${employer_sign} | jq -r '.hex'`
+
+	txid=`bitcoin-cli -datadir=$DATA_DIR sendrawtransaction "$finalized"`
+
+	echo "PSBT multisig spend txid: ${txid}"
+}
 
 
 
@@ -140,41 +177,26 @@ mine 100 $miner_add
 print_balance Employee
 print_balance Employer 
 
+get_new_add Employer multisig
+employer_multisig_add=$add
+
+
+create_2_2_multisig_address Employee $employee_add Employer $employer_multisig_add
+
+echo "Multisig address: $multisig_add"
+
+fund_multisig $multisig_add $employer_change
+funding_trxid=$trxid
+
+mine 100 $miner_add
+
+send_from_multisig_rich $multisig_add $funding_trxid $employee_add
+
+mine 100 $miner_add
+
+
+print_balance Employee
+print_balance Employer 
+
 bitcoin-cli -datadir=$DATA_DIR stop
 exit
-
-
-
-
-
-echo "Alice add: ${alice_add} Bob Address: ${bob_add}"
-echo
-
-change_add=`bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Miner getrawchangeaddress`
-echo "Change Address for Miner: ${change_add}"
-echo
-
-fund_alice_n_bob $alice_add $bob_add $change_add
-
-mine 103 $miner_add
-
-create_2_2_multisig_address Alice $alice_add Bob $bob_add
-
-echo $multisig_add
-
-create_psbt_to_multisig $multisig_add
-
-psbt_txid=$txid
-
-mine 101 $miner_add
-
-create_psbt_spend_from_multisig $multisig_add $psbt_txid 
-
-# mine 101 $miner_add
-
-print_balance Alice
-print_balance Bob
-
-bitcoin-cli -datadir=$DATA_DIR stop
-
-# I don't think Alice or Bob can be poorer or richer, as it is completely dependant on how the PSBTs were made...
