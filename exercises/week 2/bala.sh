@@ -205,9 +205,9 @@ echo -e "\n -------------------------------------------------------------------\
 echo -e "\n -------------------------------------------------------------------\n"
 echo -e "The following observations can be made about the parent, child and RBFed transactions \n1. After RBF, the parent transaction is updated with a walletconflict \n2.The child transaction and the original parent transaction is evicted from the mempool after the parent transaction is RBFed\n"
 }
-#start_bitcoind 
 
-#wallets
+start_bitcoind 
+wallets
 parenttransaction
 collecttxinfo
 childtx
