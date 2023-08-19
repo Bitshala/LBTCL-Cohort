@@ -84,33 +84,13 @@ fund_multisig() {
 }
 
 
-send_from_multisig_rich() {
-	bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Employee -named addmultisigaddress nrequired=2 keys='''["'$pub1'","'$pub2'"]'''
-	bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Employer -named addmultisigaddress nrequired=2 keys='''["'$pub1'","'$pub2'"]'''
-	bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Employee -named importaddress address="$1" rescan=false
-	bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Employer -named importaddress address="$1" rescan=false
+send_rich() {
+	TRXID_EMPLOYER=($(bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Employer listunspent | jq -r '.[] | .txid'))
+	VOUT_EMPLOYER=($(bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Employer listunspent | jq -r '.[] | .vout'))
 
+	trxhex=`bitcoin-cli -datadir=$DATA_DIR -named createrawtransaction inputs='''[{"txid": "'${TRXID_EMPLOYER[0]}'", "vout": '${VOUT_EMPLOYER[0]}'}]''' outputs='''[{"data": "4920676f74206d792073616c617279204920616d20726963680a"}, {"'$1'": 9.9998}]'''`
 
-	psbt=`bitcoin-cli -datadir=$DATA_DIR -named createpsbt inputs='''[{"txid": "'$2'", "vout": 0}]''' outputs='''[{"data": "4920676f74206d792073616c617279204920616d20726963680a"}, {"'$3'": 39.9999}]'''`
-
-	# echo $psbt
-	employee_sign=`bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Employee walletprocesspsbt ${psbt} | jq -r '.psbt'`
-	# echo $employee_sign
-	
-	employer_sign=`bitcoin-cli -datadir=$DATA_DIR -rpcwallet=Employer walletprocesspsbt ${employee_sign}`
-	echo $employer_sign
-
-	status=`echo ${employer_sign} | jq -r '.complete'`
-
-	[ "$status" == "true" ] && echo "PSBT Signed completely" || echo "PSBT is not completely signed" 
-
-	employer_sign=`echo $employer_sign | jq -r '.psbt'`
-
-	finalized=`bitcoin-cli -datadir=$DATA_DIR finalizepsbt ${employer_sign} | jq -r '.hex'`
-
-	txid=`bitcoin-cli -datadir=$DATA_DIR sendrawtransaction "$finalized"`
-
-	echo "PSBT multisig spend txid: ${txid}"
+	sign_and_send_trx Employer $trxhex
 }
 
 
@@ -190,7 +170,7 @@ funding_trxid=$trxid
 
 mine 100 $miner_add
 
-send_from_multisig_rich $multisig_add $funding_trxid $employee_add
+send_rich $employer_change
 
 mine 100 $miner_add
 
