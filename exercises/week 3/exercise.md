@@ -23,7 +23,7 @@ In this exercise, we aim to simulate a basic multisig share transfer between two
 2. Sign the PSBT by `Alice`.
 3. Sign the PSBT by `Bob`.
 4. Extract and broadcast the fully signed transaction.
-5. Print the final balances of `Alice` and `Bob`. `Alice` should be around 3 BTC poorer, and `Bob` 3 BTC richer.
+5. Print the final balances of `Alice` and `Bob`.
 
 ## Submission
 

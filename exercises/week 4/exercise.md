@@ -9,7 +9,7 @@ In the following exercise, we go through a workflow where an `Employee` is getti
 
 ### Write a bash script to:
 
-#### Setup Multisig With Timelock
+#### Setup a TimeLock contract
 
 1. Create three wallets: `Miner`, `Employee`, and `Employer`.
 2. Fund the wallets by generating some blocks for `Miner` and sending some coins to `Employer`.
@@ -19,7 +19,7 @@ In the following exercise, we go through a workflow where an `Employee` is getti
 6. Mine up to 500th block and broadcast the transaction.
 7. Print the final balances of `Employee` and `Employer`.
 
-#### Spending Multisig with OP_RETURN
+#### Spend from the TimeLock
 
 1. Create a spending transaction where the `Employee` spends the fund to a new `Employee` wallet address.
 2. Add an OP_RETURN output in the spending transaction with the string data "I got my salary, I am rich".
