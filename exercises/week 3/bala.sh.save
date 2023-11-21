@@ -1,0 +1,154 @@
+#!/bin/bash
+shopt -s expand_aliases
+alias bcli="bitcoin-cli -datadir=/tmp/bitcointmpdata -named"
+start_bitcoind () {
+if [ ! -d "/tmp/bitcointmpdata" ]; then
+	mkdir /tmp/bitcointmpdata
+	printf "regtest=1\nfallbackfee=0.0001\nserver=1\ntxindex=1\nminrelaytxfee=0.00000001\nmintxfee=0.00000001\n" >> /tmp/bitcointmpdata/bitcoin.conf	
+
+elif [ -e /tmp/bitcointmpdata/bitcoin.conf ]; then
+	echo -e "Removing the existing config file and creating a new one \n"
+	rm /tmp/bitcointmpdata/bitcoin.conf
+	printf "regtest=1\nfallbackfee=0.0001\nserver=1\ntxindex=1\nminrelaytxfee=0.00000001\nmintxfee=0.00000001\n" >> /tmp/bitcointmpdata/bitcoin.conf
+	echo -e "The new bitcoind configurations are: \n"
+	cat /tmp/bitcointmpdata/bitcoin.conf
+fi
+
+if startresult=$(bitcoind -datadir=/tmp/bitcointmpdata -daemon 2>&1); then
+	waitforbitcoind 
+elif [[ $startresult == *"probably already running"* ]]; then
+	echo -e "Bitcoin core is already running\n"
+	previousdatadir=$(find / -type f -name "debug.log" -mtime -1 2>&1 | grep -v "Permission denied")
+	datadirectory=$(cat $previousdatadir|grep datadir)
+	datadirectory2=${datadirectory##*datadir=}
+	datadirectory3=$(echo "$datadirectory2" | tr -d '"')
+	## Stopping the already running instance of bitcoin
+	stopbitcoind 
+	## Restarting bitcoind  
+	echo -e "Restarting bitcoind \n"
+	bitcoind -datadir=/tmp/bitcointmpdata -daemon
+	waitforbitcoind
+
+else
+	echo -e "Error in starting Bitcoind. Please check the error below \n" $startresult
+fi
+}
+waitforbitcoind () {
+n=0
+while ! bcli -getinfo
+do 
+	if [[ $n>3 ]]; then
+		echo -e "Error in starting Bitcoin Core \n"
+		exit 1
+	fi
+	sleep 1
+	let "n+=1"
+done
+echo -e "--------------------------\nBitcoin core started successfully\n------------------------------\n"
+}
+
+stopbitcoind () {
+processid=$(pidof bitcoind)
+if [ -z $processid ]; then
+	echo -e "Bitcoind doesn't exit \n"
+	return 0
+else
+	bitcoin-cli -datadir=$datadirectory3 stop
+	result1=$?
+	tail --pid=$processid -f /dev/null
+	result2=$?
+	if [[ $result1 -eq 0 && $result2 -eq 0 ]]; then 
+		echo -e "Bitcoin Core Stopped \n"
+		return 0
+	else 
+		kill $processid
+		if [-z $(pidof bitcoind) ]; then 
+			echo -e "Bitcoin Core stopped \n"
+			return 0
+		else
+			echo -e "Error while stopping bitcoin core. Please check debug.log \n"
+			exit 1
+		fi
+	fi
+fi
+}
+
+wallets () {
+#Checking if wallets are loaded 
+
+if [ ! -d /tmp/bitcointmpdata/regtest/wallets/Miner ]; then
+	if ( bcli createwallet wallet_name="Miner" ); then 
+		echo -e "Waller named Miner created successfully \n"
+		## Mining blocks with rewards into the miner wallet ##
+		minerewards Miner
+	else
+		echo -e "Error creating Miner wallet \n"
+	fi
+else
+	if [[ $(bcli listwallets | jq -r '.[] | select(.== "Miner")') == "Miner" ]]; then
+		echo -e "Miner wallet already loaded \n"
+	else
+			if ( bcli loadwallet filename=Miner );then
+				echo -e "Miner wallet loaded successfully \n"
+			fi
+	fi
+
+fi	
+if [ ! -d /tmp/bitcointmpdata/regtest/wallets/Alice ]; then
+	if ( bcli createwallet wallet_name="Alice" ); then 
+		echo -e "Wallet named Alice created successfully \n"
+		## Mining blocks with rewards into the miner wallet ##
+	else
+		echo -e "Error creating Alice wallet \n"
+	fi
+else
+	if [[ $(bcli listwallets | jq -r '.[] | select(.== "Alice")') == "Alice" ]]; then
+		echo -e "Alice wallet already loaded \n"
+	else 
+
+		if ( bcli loadwallet filename=Alice );then
+			echo -e "Alice wallet loaded successfully \n"
+		fi
+	fi
+fi	
+
+if [ ! -d /tmp/bitcointmpdata/regtest/wallets/Bob ]; then
+	if ( bcli createwallet wallet_name="Bob" ); then 
+		echo -e "Wallet named Bob created successfully \n"
+		## Mining blocks with rewards into the miner wallet ##
+	else
+		echo -e "Error creating Bob wallet \n"
+	fi
+else
+	if [[ $(bcli listwallets | jq -r '.[] | select(.== "Bob")') == "Bob" ]]; then
+		echo -e "Bob wallet already loaded \n"
+	else 
+
+		if ( bcli loadwallet filename=Bob );then
+			echo -e "Bob wallet loaded successfully \n"
+		fi
+	fi
+fi	
+} 
+
+minerewards () {
+mineaddress=$(bcli -rpcwallet=Miner getnewaddress address_type="legacy" label="Mining rewards")
+exresult=$?
+minedrewards=0
+if [ $exresult == 0 ]; then
+	while [ $minedrewards -le 200 ]
+	do
+	  if (bcli -rpcwallet=Miner generatetoaddress nblocks=101 address=$mineaddress >/dev/null); then 
+		echo -e "101 Blocks mined \n"
+		echo -e "Rewards are generated to the address: "$mineaddress"\n"
+	  minedrewards_float=$(bcli -rpcwallet=Miner listreceivedbylabel | jq -r '.[] | select(.label=="Mining rewards") | .amount'| bc)
+	  minedrewards=$(printf '%.*f\n' 0 $minedrewards_float)
+	 else 
+		echo -e "Error in generating blocks \n"
+	fi
+	done
+else 
+	echo -e "Error in generating new address in Miner wallet \n"
+fi
+
+}
